@@ -1,0 +1,23 @@
+{
+  "name": "mina-assigment",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "watch": {
+    "build-and-start": {
+      "patterns": [
+        "src"
+      ],
+      "extensions": [
+        "*"
+      ],
+      "quiet": true
+    }
+  },
+  "nodemonConfig": {
+    "delay": 1000
+  },
+  "dependencies": {
+    "o1js": "^2.2.0"
+  }
+}
