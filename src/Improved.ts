@@ -66,6 +66,8 @@ const TreeProgram = ZkProgram({
                 previousProof.verify();
                 let calculated_root = publicInput.witness.calculateRoot(publicInput.leaf);
                 calculated_root.assertEquals(publicInput.root);
+                // Initially I thought this may be an issue because I also update the output root in the case of a read, but 
+                // each read will always have the root of the most recent insert, therefore this is actually not an issue.
                 return { publicOutput: new PublicOutput({ outputRoot: calculated_root }) }
             },
         },
