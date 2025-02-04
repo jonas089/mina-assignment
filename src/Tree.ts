@@ -1,6 +1,20 @@
 import { Field, Poseidon, ZkProgram, Struct, SelfProof, Provable, assert } from 'o1js';
 
 
+/* IMPORTANT
+
+    THIS IS NOT THE FINAL SUBMISSION
+
+    FIND THE FINAL SUBMISSION IN Improved.ts :)
+
+    THIS IS AN EARLY ITERATION WITH FLAWS
+
+    THERE IS NO NEED TO COMMIT MULTIPLE ROOT
+
+    ALSO THIS DOESN'T HANDLE READS AND USES A CUSTOM FAKE-TREE
+*/
+
+
 // a simplified mock tree that works with field elements
 class CustomTree extends Struct({
     leafs: Array(Field)
@@ -110,4 +124,3 @@ Tree.insert(new_leaf);
 let second_input = new CircuitInputs({ tree: Tree, root: initial_root, new_input: new_leaf })
 const { proof: second_proof } = await InsertProgram.recursive_insert(second_input, proof);
 console.log("Ok, recursive proof!");
-
