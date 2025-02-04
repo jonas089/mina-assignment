@@ -22,6 +22,7 @@ class CircuitInputs extends Struct({
 const SimpleProgram = ZkProgram({
     name: 'mina-recursive-tree-program',
     publicInput: CircuitInputs,
+    publicOutput: Field,
     methods: {
         prove: {
             privateInputs: [],
@@ -29,7 +30,7 @@ const SimpleProgram = ZkProgram({
                 let input_hash = Poseidon.hash([publicInput.new_input]);
                 publicInput.tree.insert(input_hash);
                 // commit the current Tree hash
-                this.output = publicInput.tree.hash();
+                return { publicOutput: publicInput.tree.hash() };
 
             },
         },
@@ -40,7 +41,8 @@ const SimpleProgram = ZkProgram({
                 let input_hash = Poseidon.hash([publicInput.new_input]);
                 publicInput.tree.insert(input_hash);
                 // commit the next Tree hash
-                this.output = publicInput.tree.hash();
+                console.log("Previous output:", previous_proof.publicOutput);
+                return { publicOutput: publicInput.tree.hash() };
             },
         }
     },
