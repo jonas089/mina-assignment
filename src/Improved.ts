@@ -1,4 +1,4 @@
-import { Field, MerkleTree, MerkleWitness, Poseidon, ZkProgram, Struct, SelfProof, assert, Provable } from "o1js";
+import { Field, MerkleTree, MerkleWitness, Poseidon, ZkProgram, Struct, SelfProof, assert, Provable, Proof } from "o1js";
 
 const TREE_DEPTH = 8;
 
@@ -75,19 +75,15 @@ const TreeProgram = ZkProgram({
     publicInput: PublicInput,
     publicOutput: PublicOutput,
     methods: {
-
-        prove_insert: {
+        prove_witness: {
             privateInputs: [],
             async method(publicInput: PublicInput) {
                 let calculated_root = publicInput.witness.calculateRoot(publicInput.leaf);
                 calculated_root.assertEquals(publicInput.root);
-                let read_values_list: Field[] = [];
-                read_values_list = padArray(read_values_list);
                 return { publicOutput: new PublicOutput({ outputRoot: calculated_root }) }
-
             },
         },
-        prove_insert_recursive: {
+        prove_witness_recursive: {
             privateInputs: [SelfProof],
             async method(publicInput: PublicInput, previousProof: SelfProof<PublicInput, PublicOutput>) {
                 previousProof.verify();
@@ -101,9 +97,13 @@ const TreeProgram = ZkProgram({
 
 
 const { verificationKey } = await TreeProgram.compile();
-for (const [idx, operation] of operations.operations.entries()) {
-    // operation is Insert
-    if (operation.kind.equals(Field(0))) {
+
+async function recursive_prover(
+    operation: Operation,
+    idx: number,
+    current_proof: Proof<PublicInput, PublicOutput>
+): Promise<Proof<PublicInput, PublicOutput>> {
+    if (operation.key.equals(Field(0))) {
         tree.setLeaf(operation.key.toBigInt(), operation.value);
         let witness: TreeWitness = new TreeWitness(tree.getWitness(operation.key.toBigInt()));
         let root: Field = tree.getRoot();
@@ -112,14 +112,60 @@ for (const [idx, operation] of operations.operations.entries()) {
             leaf: operation.value,
             root: root
         });
-        if (idx == 0) {
-            const { proof } = await TreeProgram.prove_insert(circuitInputs);
-        }
+        // Recursive case: chain proofs together
+        const { proof } = await TreeProgram.prove_witness_recursive(circuitInputs, current_proof);
+        return proof;
     }
-    // operation is Read
     else {
-        assert(operation.value == ZERO_VALUE);
+        let leaf_read: Field = tree.getLeaf(operation.key.toBigInt());
+        let witness: TreeWitness = new TreeWitness(tree.getWitness(operation.key.toBigInt()));
+        let root: Field = tree.getRoot();
+        let circuitInputs = new PublicInput({
+            witness: witness,
+            leaf: leaf_read,
+            root: root
+        });
+        // Recursive case: chain proofs together
+        const { proof } = await TreeProgram.prove_witness_recursive(circuitInputs, current_proof);
+        return proof;
     }
 }
 
-console.log("OK!");
+async function handle_first_operation(operation: Operation): Promise<Proof<PublicInput, PublicOutput>> {
+    if (operation.key.equals(Field(0))) {
+        tree.setLeaf(operation.key.toBigInt(), operation.value)
+        let witness: TreeWitness = new TreeWitness(tree.getWitness(operation.key.toBigInt()));
+        let root: Field = tree.getRoot();
+        let circuitInputs = new PublicInput({
+            witness: witness,
+            leaf: operation.value,
+            root: root
+        });
+        const { proof } = await TreeProgram.prove_witness(circuitInputs);
+        return proof;
+    }
+    else {
+        // read a leaf value
+        let leaf_read: Field = tree.getLeaf(operation.key.toBigInt());
+        let witness: TreeWitness = new TreeWitness(tree.getWitness(operation.key.toBigInt()));
+        let root: Field = tree.getRoot();
+        let circuitInputs = new PublicInput({
+            witness: witness,
+            leaf: leaf_read,
+            root: root
+        });
+        const { proof } = await TreeProgram.prove_witness(circuitInputs);
+        return proof;
+    }
+}
+
+let current_proof = await handle_first_operation(operations.operations[0]);
+for (const [idx, operation] of operations.operations.entries()) {
+    if (idx == 0) {
+        continue;
+    }
+    current_proof = await recursive_prover(operation, idx, current_proof);
+}
+
+
+console.log("Final Proof: ", current_proof);
