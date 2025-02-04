@@ -1,4 +1,4 @@
-import { Field, MerkleTree, MerkleWitness, Poseidon, ZkProgram, Struct, SelfProof, assert } from "o1js";
+import { Field, MerkleTree, MerkleWitness, Poseidon, ZkProgram, Struct, SelfProof, assert, Provable } from "o1js";
 
 const TREE_DEPTH = 8;
 
@@ -39,6 +39,12 @@ class PublicInput extends Struct({
     witness: TreeWitness,
     leaf: Field,
     root: Field
+}) { }
+
+class PublicOutput extends Struct({
+    // can't read more than this
+    valuesRead: Provable.Array(Field, 2 ** TREE_DEPTH),
+    outputRoot: Field
 }) { }
 
 const TreeProgram = ZkProgram({
