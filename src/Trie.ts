@@ -77,10 +77,3 @@ const { proof: second_proof } = await SimpleProgram.prove(second_input);
 console.log("Second Proof: ", second_proof);
 
 
-// must pass: 
-// - the witness for the merkle proof
-// - the expected tree root
-// - the hash of the inserted state
-// - the preimage of the inserted state
-
-
