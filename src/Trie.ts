@@ -25,7 +25,6 @@ const SimpleProgram = ZkProgram({
     methods: {
         prove: {
             privateInputs: [Field, Field, MockState],
-            // target: Tree Root after insert, 
             async method(publicInput: TreeMerkleWitness, treeRoot: Field, target: Field, guess: MockState
             ) {
                 guess.hash().assertEquals(target);
@@ -44,8 +43,9 @@ let w = Tree.getWitness(0n);
 let witness = new TreeMerkleWitness(w);
 // must pass: 
 // - the witness for the merkle proof
-// - the expected root
-// - the preimage of the inserted hash
+// - the expected tree root
+// - the hash of the inserted state
+// - the preimage of the inserted state
 const { proof } = await SimpleProgram.prove(witness, Tree.getRoot(), initial_state_root, state);
 console.log(proof);
 
