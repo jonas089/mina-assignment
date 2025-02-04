@@ -28,7 +28,7 @@ const SimpleProgram = ZkProgram({
             async method(publicInput: TreeMerkleWitness, treeRoot: Field, target: Field, guess: MockState
             ) {
                 guess.hash().assertEquals(target);
-                publicInput.calculateRoot(treeRoot).assertEquals(target);
+                publicInput.calculateRoot(guess.hash()).assertEquals(treeRoot);
             },
         },
     },
