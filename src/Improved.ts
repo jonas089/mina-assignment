@@ -47,29 +47,6 @@ class PublicOutput extends Struct({
 }) { }
 
 
-
-function padArray(arr: Field[]): Field[] {
-    let padded: Field[] = [];
-    for (const element of arr) {
-        padded.push(element)
-    }
-    while (padded.length < 2 ** TREE_DEPTH) {
-        padded.push(Field(0))
-    }
-    return padded;
-}
-
-function trimArray(arr: Field[], padValue: Field): Field[] {
-    let output: Field[] = []
-    for (const element of arr) {
-        if (!padValue.equals(element)) {
-            output.push(element)
-        }
-    }
-    return output;
-}
-
-
 const TreeProgram = ZkProgram({
     name: 'mina-recursive-tree-program',
     publicInput: PublicInput,
