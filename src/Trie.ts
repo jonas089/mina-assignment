@@ -41,10 +41,6 @@ const SimpleProgram = ZkProgram({
 const { verificationKey } = await SimpleProgram.compile();
 let state = new MockState({ name: new UInt32(1) });
 let initial_state_root = state.hash();
-// assume here that 1 leaf is already present and we want to re-build the tree & insert a new leaf at index + 1.
-// We could maintain the Tree state and pass it to the recursive circuit / inserting the next leaf at each state,
-// however I was unable to figure out how to pass the current, already constructed Tree to the circuit as an input.
-// publicInput: MerkleTree is not a valid input to the circuit, therefore I have to re-construct the Tree in every iteration.
 let Tree = new MerkleTree(8);
 Tree.setLeaf(0n, initial_state_root);
 let w = Tree.getWitness(0n);
