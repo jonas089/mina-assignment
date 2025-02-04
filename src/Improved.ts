@@ -43,13 +43,37 @@ class PublicInput extends Struct({
 
 class PublicOutput extends Struct({
     // can't read more than this
-    valuesRead: Provable.Array(Field, 2 ** TREE_DEPTH),
     outputRoot: Field
 }) { }
+
+
+
+function padArray(arr: Field[]): Field[] {
+    let padded: Field[] = [];
+    for (const element of arr) {
+        padded.push(element)
+    }
+    while (padded.length < 2 ** TREE_DEPTH) {
+        padded.push(Field(0))
+    }
+    return padded;
+}
+
+function trimArray(arr: Field[], padValue: Field): Field[] {
+    let output: Field[] = []
+    for (const element of arr) {
+        if (!padValue.equals(element)) {
+            output.push(element)
+        }
+    }
+    return output;
+}
+
 
 const TreeProgram = ZkProgram({
     name: 'mina-recursive-tree-program',
     publicInput: PublicInput,
+    publicOutput: PublicOutput,
     methods: {
 
         prove_insert: {
@@ -57,22 +81,19 @@ const TreeProgram = ZkProgram({
             async method(publicInput: PublicInput) {
                 let calculated_root = publicInput.witness.calculateRoot(publicInput.leaf);
                 calculated_root.assertEquals(publicInput.root);
-            },
-        },
-        prove_insert_recursive: {
-            privateInputs: [],
-            async method() {
+                let read_values_list: Field[] = [];
+                read_values_list = padArray(read_values_list);
+                return { publicOutput: new PublicOutput({ outputRoot: calculated_root }) }
 
             },
         },
-        prove_read: {
-            privateInputs: [],
-            async method() {
-            },
-        },
-        prove_read_recursive: {
-            privateInputs: [],
-            async method() {
+        prove_insert_recursive: {
+            privateInputs: [SelfProof],
+            async method(publicInput: PublicInput, previousProof: SelfProof<PublicInput, PublicOutput>) {
+                previousProof.verify();
+                let calculated_root = publicInput.witness.calculateRoot(publicInput.leaf);
+                calculated_root.assertEquals(publicInput.root);
+                return { publicOutput: new PublicOutput({ outputRoot: calculated_root }) }
             },
         },
     },
