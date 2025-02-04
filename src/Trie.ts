@@ -1,14 +1,10 @@
-import { Field, Poseidon, MerkleTree, ZkProgram, UInt32, Struct, MerkleWitness } from 'o1js';
+import { Field, Poseidon, MerkleTree, ZkProgram, UInt32, Struct, MerkleWitness, Circuit } from 'o1js';
 
 class TreeMerkleWitness extends MerkleWitness(8) { }
 
-class Node extends Struct({
-    index: Field,
-    value: Field
-}) { }
-
-class PublicNodeInputs extends Struct({
-    nodes: [Node],
+class CircuitInputs extends Struct({
+    witness: TreeMerkleWitness,
+    root: Field
 }) { }
 
 class MockState extends Struct({
@@ -21,14 +17,17 @@ class MockState extends Struct({
 
 const SimpleProgram = ZkProgram({
     name: 'mina-recursive-tree-program',
-    publicInput: TreeMerkleWitness,
+    publicInput: CircuitInputs,
     methods: {
         prove: {
-            privateInputs: [Field, Field, MockState],
-            async method(publicInput: TreeMerkleWitness, treeRoot: Field, target: Field, guess: MockState
+            privateInputs: [Field, MockState],
+            async method(publicInput: CircuitInputs, target: Field, guess: MockState
             ) {
+                // verify the hash of the leaf
                 guess.hash().assertEquals(target);
-                publicInput.calculateRoot(guess.hash()).assertEquals(treeRoot);
+                // verify the merkle proof against the expected root - proves that the leaf was previously inserted
+                // in the tree / that it exists in the tree
+                publicInput.witness.calculateRoot(guess.hash()).assertEquals(publicInput.root);
             },
         },
     },
@@ -41,12 +40,13 @@ let Tree = new MerkleTree(8);
 Tree.setLeaf(0n, initial_state_root);
 let w = Tree.getWitness(0n);
 let witness = new TreeMerkleWitness(w);
+let input = new CircuitInputs({ witness: witness, root: Tree.getRoot() })
 // must pass: 
 // - the witness for the merkle proof
 // - the expected tree root
 // - the hash of the inserted state
 // - the preimage of the inserted state
-const { proof } = await SimpleProgram.prove(witness, Tree.getRoot(), initial_state_root, state);
+const { proof } = await SimpleProgram.prove(input, initial_state_root, state);
 console.log(proof);
 
 
