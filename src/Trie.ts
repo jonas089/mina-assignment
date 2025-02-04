@@ -47,6 +47,7 @@ const SimpleProgram = ZkProgram({
             privateInputs: [SelfProof],
             async method(publicInput: CircuitInputs, previous_proof: SelfProof<CircuitInputs, PublicOutput>) {
                 let previous_root = publicInput.tree.hash();
+                previous_root.assertEquals(previous_proof.publicOutput.current_root);
                 previous_proof.verify();
                 let input_hash = Poseidon.hash([publicInput.new_input]);
                 let new_tree = publicInput.tree.insert(input_hash);
