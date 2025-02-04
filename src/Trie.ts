@@ -1,4 +1,6 @@
-import { Field, Poseidon, MerkleTree, ZkProgram, UInt32, Struct } from 'o1js';
+import { Field, Poseidon, MerkleTree, ZkProgram, UInt32, Struct, MerkleWitness } from 'o1js';
+
+class TreeMerkleWitness extends MerkleWitness(8) { }
 
 class Node extends Struct({
     index: Field,
@@ -7,56 +9,49 @@ class Node extends Struct({
 
 class PublicNodeInputs extends Struct({
     nodes: [Node],
-    index: Field,
-    leaf: Field,
-    previous_root: Field,
 }) { }
 
-class Account extends Struct({
+class MockState extends Struct({
     name: UInt32,
 }) {
     hash(): Field {
-        return Poseidon.hash(Account.toFields(this));
+        return Poseidon.hash(MockState.toFields(this));
     }
 }
 
 const SimpleProgram = ZkProgram({
     name: 'mina-recursive-tree-program',
-    publicInput: PublicNodeInputs,
+    publicInput: TreeMerkleWitness,
     methods: {
         prove: {
-            privateInputs: [],
-            async method(publicInput: PublicNodeInputs) {
-                let Tree = new MerkleTree(8);
-                // fill tree with previous leafs
-                for (const leaf of publicInput.nodes) {
-                    Tree.setLeaf(leaf.index.toBigInt(), leaf.value);
-                }
-                // assert that it matches the expected root
-                let previous_root_recomputed = Tree.getRoot();
-                previous_root_recomputed.assertEquals(publicInput.previous_root);
-                // insert the new leaf
-                Tree.setLeaf(publicInput.index.toBigInt(), publicInput.leaf);
-                let output = Tree.getRoot();
-                // insert at index 0
-                // todo: commit the root as a public output
-                // todo: generate a proof for the key
+            privateInputs: [Field, MockState, Field, MockState],
+            // target: Tree Root after insert, 
+            async method(publicInput: TreeMerkleWitness, target: Field, guess: MockState, commitment: Field, nextInsert: MockState
+            ) {
+                guess.hash().assertEquals(target);
+                commitment.assertEquals(commitment);
+                publicInput.calculateRoot(guess.hash()).assertEquals(commitment);
+                // the new commitment
+                let output = publicInput.calculateRoot(nextInsert.hash());
             },
         },
     },
 });
 
 const { verificationKey } = await SimpleProgram.compile();
-let account = new Account({ name: new UInt32(1) });
-let default_input = account.hash();
-let Tree: MerkleTree = new MerkleTree(8);
-let nodes = [];
+let state = new MockState({ name: new UInt32(1) });
+let initial_state_root = state.hash();
 // assume here that 1 leaf is already present and we want to re-build the tree & insert a new leaf at index + 1.
 // We could maintain the Tree state and pass it to the recursive circuit / inserting the next leaf at each state,
 // however I was unable to figure out how to pass the current, already constructed Tree to the circuit as an input.
 // publicInput: MerkleTree is not a valid input to the circuit, therefore I have to re-construct the Tree in every iteration.
-let publicInputStruct = new PublicNodeInputs({ nodes: [new Node({ index: Field(0), value: default_input })], index: Field(1), leaf: default_input, previous_root: Field(0/*unknown due to BigInt compiler error?*/) });
-const { proof } = await SimpleProgram.prove(publicInputStruct);
+let Tree = new MerkleTree(8);
+Tree.setLeaf(0n, initial_state_root);
+let w = Tree.getWitness(0n);
+let witness = new TreeMerkleWitness(w);
+// assert that it matches the expected root
+let previous_root_recomputed = Tree.getRoot();
+const { proof } = await SimpleProgram.prove(witness, initial_state_root, state, Tree.getRoot(), state);
 console.log(proof);
 
 
