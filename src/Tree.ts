@@ -1,4 +1,4 @@
-import { Field, Poseidon, MerkleTree, ZkProgram, UInt32, Struct, MerkleWitness, Circuit, SelfProof, Proof, Provable, assert } from 'o1js';
+import { Field, Poseidon, ZkProgram, Struct, SelfProof, Provable, assert } from 'o1js';
 
 
 // a simplified mock tree that works with field elements
@@ -14,11 +14,13 @@ class CustomTree extends Struct({
     }
 }
 
+const OPERATIONS_LIMIT = 10;
+
 class InsertPublicOutput extends Struct(
     {
-        // can hold a maximum of 10 operations
-        leaf_history: Provable.Array(Field, 10),
-        root_history: Provable.Array(Field, 10),
+        // can hold a maximum of OPERATIONS_LIMIT operations
+        leaf_history: Provable.Array(Field, OPERATIONS_LIMIT),
+        root_history: Provable.Array(Field, OPERATIONS_LIMIT),
     }
 ) { }
 
@@ -28,12 +30,13 @@ class CircuitInputs extends Struct({
     new_input: Field,
 }) { }
 
+
 function padArray(arr: Field[], length: number, padValue: Field): Field[] {
     let padded: Field[] = [];
     for (const element of arr) {
         padded.push(element)
     }
-    while (padded.length < 10) {
+    while (padded.length < OPERATIONS_LIMIT) {
         padded.push(Field(0))
     }
     return padded;
@@ -62,8 +65,8 @@ const InsertProgram = ZkProgram({
                 let new_tree = publicInput.tree.insert(input_hash);
                 let new_leaf_history = [publicInput.new_input];
                 let new_root_history = [new_tree.hash()];
-                new_leaf_history = padArray(new_leaf_history, 10, Field(0));
-                new_root_history = padArray(new_root_history, 10, Field(0));
+                new_leaf_history = padArray(new_leaf_history, OPERATIONS_LIMIT, Field(0));
+                new_root_history = padArray(new_root_history, OPERATIONS_LIMIT, Field(0));
                 // commit the current, and previous root and the new leaf
                 return { publicOutput: new InsertPublicOutput({ leaf_history: new_leaf_history, root_history: new_root_history }) };
             },
@@ -78,10 +81,10 @@ const InsertProgram = ZkProgram({
                 let new_root_history = [...previous_proof.publicOutput.root_history, new_tree.hash()];
                 new_leaf_history = trimArray(new_leaf_history, Field(0));
                 new_root_history = trimArray(new_root_history, Field(0));
-                new_leaf_history = padArray(new_leaf_history, 10, Field(0));
-                new_root_history = padArray(new_root_history, 10, Field(0));
-                assert(new_leaf_history.length == 10);
-                assert(new_root_history.length == 10);
+                new_leaf_history = padArray(new_leaf_history, OPERATIONS_LIMIT, Field(0));
+                new_root_history = padArray(new_root_history, OPERATIONS_LIMIT, Field(0));
+                assert(new_leaf_history.length == OPERATIONS_LIMIT);
+                assert(new_root_history.length == OPERATIONS_LIMIT);
                 // assuming the previous proof is valid, commit the current, and previous root and the new leaf
                 return { publicOutput: new InsertPublicOutput({ leaf_history: new_leaf_history, root_history: new_root_history }) };
             },
