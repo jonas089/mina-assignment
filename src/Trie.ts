@@ -67,11 +67,6 @@ let Tree = new CustomTree({ leafs: leafs });
 // hash the initial tree root
 let initial_root = Tree.hash();
 let first_input = new CircuitInputs({ tree: Tree, root: initial_root, new_input: Field(22222) })
-// must pass: 
-// - the witness for the merkle proof
-// - the expected tree root
-// - the hash of the inserted state
-// - the preimage of the inserted state
 const { proof: first_proof } = await SimpleProgram.prove(first_input);
 console.log("First Proof: ", first_proof);
 
