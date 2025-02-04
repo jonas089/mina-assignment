@@ -1,19 +1,22 @@
-import { Field, Poseidon, MerkleTree, ZkProgram, UInt32, Struct, MerkleWitness, Circuit } from 'o1js';
+import { Field, Poseidon, MerkleTree, ZkProgram, UInt32, Struct, MerkleWitness, Circuit, SelfProof } from 'o1js';
 
-class TreeMerkleWitness extends MerkleWitness(8) { }
 
-class MockState extends Struct({
-    name: UInt32,
+// a simplified mock tree that works with field elements
+class CustomTree extends Struct({
+    leafs: Array(Field)
 }) {
+    insert(element: Field) {
+        this.leafs.push(element);
+    }
     hash(): Field {
-        return Poseidon.hash(MockState.toFields(this));
+        return Poseidon.hash(this.leafs);
     }
 }
 
 class CircuitInputs extends Struct({
-    witness: TreeMerkleWitness,
+    tree: CustomTree,
     root: Field,
-    guess: MockState,
+    new_input: Field,
 }) { }
 
 const SimpleProgram = ZkProgram({
@@ -21,33 +24,49 @@ const SimpleProgram = ZkProgram({
     publicInput: CircuitInputs,
     methods: {
         prove: {
-            privateInputs: [Field],
-            async method(publicInput: CircuitInputs, target: Field
-            ) {
-                // verify the hash of the leaf
-                publicInput.guess.hash().assertEquals(target);
-                // verify the merkle proof against the expected root - proves that the leaf was previously inserted
-                // in the tree / that it exists in the tree
-                publicInput.witness.calculateRoot(publicInput.guess.hash()).assertEquals(publicInput.root);
+            privateInputs: [],
+            async method(publicInput: CircuitInputs) {
+                let input_hash = Poseidon.hash([publicInput.new_input]);
+                publicInput.tree.insert(input_hash);
+                // commit the current Tree hash
+                this.output = publicInput.tree.hash();
+
             },
         },
+        recursive: {
+            privateInputs: [SelfProof<Field, void>],
+            async method(publicInput: CircuitInputs, previous_proof: SelfProof<Field, void>) {
+                previous_proof.verify();
+                let input_hash = Poseidon.hash([publicInput.new_input]);
+                publicInput.tree.insert(input_hash);
+                // commit the next Tree hash
+                this.output = publicInput.tree.hash();
+            },
+        }
     },
 });
 
 const { verificationKey } = await SimpleProgram.compile();
-let state = new MockState({ name: new UInt32(1) });
-let initial_state_root = state.hash();
-let Tree = new MerkleTree(8);
-Tree.setLeaf(0n, initial_state_root);
-let w = Tree.getWitness(0n);
-let witness = new TreeMerkleWitness(w);
-let input = new CircuitInputs({ witness: witness, root: Tree.getRoot(), guess: state })
+// each leaf is an arbitrarily sized leaf's poseidon hash
+// therefore a leaf can represent any data.
+// initialize with an empty leaf for simplicity sake
+let leafs = [Field(0)];
+// construct the tree with one leaf in it
+let Tree = new CustomTree({ leafs: leafs });
+// hash the initial tree root
+let initial_root = Tree.hash();
+let input = new CircuitInputs({ tree: Tree, root: initial_root, new_input: Field(0) })
 // must pass: 
 // - the witness for the merkle proof
 // - the expected tree root
 // - the hash of the inserted state
 // - the preimage of the inserted state
-const { proof } = await SimpleProgram.prove(input, initial_state_root);
-console.log(proof);
+const { proof } = await SimpleProgram.prove(input);
+console.log("Proof", proof);
+// must pass: 
+// - the witness for the merkle proof
+// - the expected tree root
+// - the hash of the inserted state
+// - the preimage of the inserted state
 
 
