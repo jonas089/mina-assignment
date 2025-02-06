@@ -111,7 +111,7 @@ async function recursive_prover(
 }
 
 async function handle_first_operation(operation: Operation): Promise<Proof<PublicInput, PublicOutput>> {
-    if (operation.key.equals(Field(0))) {
+    if (operation.kind.equals(Field(0))) {
         tree.setLeaf(operation.key.toBigInt(), operation.value)
         let witness: TreeWitness = new TreeWitness(tree.getWitness(operation.key.toBigInt()));
         let root: Field = tree.getRoot();
